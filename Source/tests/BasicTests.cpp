@@ -375,15 +375,24 @@ struct PluginStateTestRestoration   : public PluginTest
     {
         auto r = ut.getRandom();
 
+        const auto tolaratedDiff = 0.1f;
+
+        // Some plugin formats (notably VST3) cache parameter values set via
+        // setValue() on the host side and only deliver them to the plugin's
+        // internal state during processBlock(). As getStateInformation()
+        // reflects the plugin's internal state, we must flush any pending
+        // parameter changes before reading state, otherwise the value reported
+        // by getValue() (host cache) and the value stored in the state (plugin
+        // internal) can disagree, producing spurious restoration failures.
+        ScopedPluginProcessorFlush flusher { instance };
+
         // Read state
         auto originalState = callGetStateInformationOnMessageThreadIfVST3 (instance);
-
-        const auto tolaratedDiff = 0.1f;
 
         // Set random parameter values
         for (auto parameter : getNonBypassAutomatableParameters(instance))
         {
-			const auto originalValue = parameter->getValue();
+            const auto originalValue = parameter->getValue();
             parameter->setValue(r.nextFloat());
 
             // Restore original state

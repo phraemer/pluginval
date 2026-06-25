@@ -295,6 +295,58 @@ struct ScopedEditorShower
 
 
 //==============================================================================
+/** Prepares the plugin to play, runs a few processBlock() calls to flush any
+    host-side parameter value changes into the plugin's internal state, then
+    restores the previous preparation state on destruction.
+
+    This is necessary because, for some formats (notably VST3), parameter values
+    set via AudioProcessorParameter::setValue() are cached on the host side and
+    only delivered to the plugin's processor/component state during processBlock().
+    Tests that read getStateInformation() (which reflects the plugin's internal
+    state) without first processing audio may therefore see a value that lags
+    behind the value returned by parameter->getValue() (which reflects the host
+    cache), producing spurious failures.
+*/
+struct ScopedPluginProcessorFlush
+{
+    ScopedPluginProcessorFlush (juce::AudioPluginInstance& instance,
+                                double sampleRateToUse = 44100.0,
+                                int blockSizeToUse = 512,
+                                int numBlocksToProcess = 4)
+        : pluginInstance (instance),
+          previousSampleRate (instance.getSampleRate()),
+          previousBlockSize (instance.getBlockSize())
+    {
+        callReleaseResourcesOnMessageThreadIfVST3 (pluginInstance);
+        callPrepareToPlayOnMessageThreadIfVST3 (pluginInstance, sampleRateToUse, blockSizeToUse);
+
+        const auto numChannels = juce::jmax (pluginInstance.getTotalNumInputChannels(),
+                                             pluginInstance.getTotalNumOutputChannels());
+        juce::AudioBuffer<float> buffer (numChannels, blockSizeToUse);
+        juce::MidiBuffer midi;
+
+        for (int i = 0; i < numBlocksToProcess; ++i)
+        {
+            fillNoise (buffer);
+            pluginInstance.processBlock (buffer, midi);
+            midi.clear();
+        }
+    }
+
+    ~ScopedPluginProcessorFlush()
+    {
+        callReleaseResourcesOnMessageThreadIfVST3 (pluginInstance);
+
+        if (previousBlockSize != 0 && previousSampleRate != 0.0)
+            callPrepareToPlayOnMessageThreadIfVST3 (pluginInstance, previousSampleRate, previousBlockSize);
+    }
+
+    juce::AudioPluginInstance& pluginInstance;
+    const double previousSampleRate;
+    const int previousBlockSize;
+};
+
+//==============================================================================
 //==============================================================================
 struct ScopedPluginDeinitialiser
 {
