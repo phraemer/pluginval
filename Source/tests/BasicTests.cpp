@@ -390,13 +390,36 @@ struct PluginStateTestRestoration   : public PluginTest
         auto originalState = callGetStateInformationOnMessageThreadIfVST3 (instance);
 
         // Set random parameter values
+        const auto numChannels = juce::jmax (instance.getTotalNumInputChannels(),
+                                             instance.getTotalNumOutputChannels());
+        juce::AudioBuffer<float> diagBuffer (numChannels, instance.getBlockSize() > 0 ? instance.getBlockSize() : 512);
+        juce::MidiBuffer diagMidi;
+
         for (auto parameter : getNonBypassAutomatableParameters(instance))
         {
             const auto originalValue = parameter->getValue();
-            parameter->setValue(r.nextFloat());
+            const auto randomValue = r.nextFloat();
+            parameter->setValue(randomValue);
+
+            ut.logMessage("[DIAG] param=" + parameter->getName(1024)
+                          + " originalValue=" + juce::String(originalValue, 6)
+                          + " setRandom=" + juce::String(randomValue, 6)
+                          + " getValueAfterSet=" + juce::String(parameter->getValue(), 6));
 
             // Restore original state
             callSetStateInformationOnMessageThreadIfVST3(instance, originalState);
+
+            ut.logMessage("[DIAG]   after setStateInformation getValue=" + juce::String(parameter->getValue(), 6));
+
+            // Diagnostic: drive a processBlock and see if the cache catches up
+            for (int i = 0; i < 4; ++i)
+            {
+                fillNoise (diagBuffer);
+                instance.processBlock (diagBuffer, diagMidi);
+                diagMidi.clear();
+            }
+
+            ut.logMessage("[DIAG]   after processBlock getValue=" + juce::String(parameter->getValue(), 6));
 
             // Check parameter values return to original
             ut.expectWithinAbsoluteError(parameter->getValue(), originalValue, tolaratedDiff,
