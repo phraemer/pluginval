@@ -23,7 +23,6 @@
 #include <future>
 #include <thread>
 #include <chrono>
-#include <iostream>  // for std::cerr diagnostic
 
 //==============================================================================
 struct PluginInfoTest   : public PluginTest
@@ -387,55 +386,17 @@ struct PluginStateTestRestoration   : public PluginTest
         // internal) can disagree, producing spurious restoration failures.
         ScopedPluginProcessorFlush flusher { instance };
 
-        // Diagnostic: check whether getValue() and getStateInformation() agree
-        // after the flush, for the first few parameters.
-        {
-            auto flushState = callGetStateInformationOnMessageThreadIfVST3 (instance);
-            // Decode the state to find parameter values is hard; instead just
-            // log getValue() for the first param and compare after a second flush.
-            auto params = getNonBypassAutomatableParameters (instance);
-            if (! params.isEmpty())
-            {
-                auto* p0 = params.getFirst();
-                ut.logMessage ("[DIAG-FLUSH] after initial flush: " + p0->getName(1024)
-                               + " getValue=" + juce::String (p0->getValue(), 6));
-            }
-        }
-
         // Read state
         auto originalState = callGetStateInformationOnMessageThreadIfVST3 (instance);
 
         // Set random parameter values
-        const auto numChannels = juce::jmax (instance.getTotalNumInputChannels(),
-                                             instance.getTotalNumOutputChannels());
-        juce::AudioBuffer<float> diagBuffer (numChannels, instance.getBlockSize() > 0 ? instance.getBlockSize() : 512);
-        juce::MidiBuffer diagMidi;
-
         for (auto parameter : getNonBypassAutomatableParameters(instance))
         {
             const auto originalValue = parameter->getValue();
-            const auto randomValue = r.nextFloat();
-            parameter->setValue(randomValue);
-
-            ut.logMessage("[DIAG] param=" + parameter->getName(1024)
-                          + " originalValue=" + juce::String(originalValue, 6)
-                          + " setRandom=" + juce::String(randomValue, 6)
-                          + " getValueAfterSet=" + juce::String(parameter->getValue(), 6));
+            parameter->setValue(r.nextFloat());
 
             // Restore original state
             callSetStateInformationOnMessageThreadIfVST3(instance, originalState);
-
-            ut.logMessage("[DIAG]   after setStateInformation getValue=" + juce::String(parameter->getValue(), 6));
-
-            // Diagnostic: drive a processBlock and see if the cache catches up
-            for (int i = 0; i < 4; ++i)
-            {
-                fillNoise (diagBuffer);
-                instance.processBlock (diagBuffer, diagMidi);
-                diagMidi.clear();
-            }
-
-            ut.logMessage("[DIAG]   after processBlock getValue=" + juce::String(parameter->getValue(), 6));
 
             // Check parameter values return to original
             ut.expectWithinAbsoluteError(parameter->getValue(), originalValue, tolaratedDiff,

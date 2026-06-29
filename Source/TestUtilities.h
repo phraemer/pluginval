@@ -16,8 +16,6 @@
 
 #include "juce_audio_processors/juce_audio_processors.h"
 
-#include <iostream>  // for std::cerr diagnostic
-
 //==============================================================================
 struct StopwatchTimer
 {
@@ -319,15 +317,6 @@ struct ScopedPluginProcessorFlush
           previousSampleRate (instance.getSampleRate()),
           previousBlockSize (instance.getBlockSize())
     {
-        // Diagnostic: log getValue() for the first param before/after the flush
-        auto paramsBefore = getNonBypassAutomatableParameters (pluginInstance);
-        if (! paramsBefore.isEmpty())
-        {
-            auto* p0 = paramsBefore.getFirst();
-            std::cerr << "[FLUSHDIAG] before flush: " << p0->getName(1024).toStdString()
-                      << " getValue=" << p0->getValue() << "\n";
-        }
-
         callReleaseResourcesOnMessageThreadIfVST3 (pluginInstance);
         callPrepareToPlayOnMessageThreadIfVST3 (pluginInstance, sampleRateToUse, blockSizeToUse);
 
@@ -341,13 +330,6 @@ struct ScopedPluginProcessorFlush
             fillNoise (buffer);
             pluginInstance.processBlock (buffer, midi);
             midi.clear();
-        }
-
-        if (! paramsBefore.isEmpty())
-        {
-            auto* p0 = paramsBefore.getFirst();
-            std::cerr << "[FLUSHDIAG] after flush: " << p0->getName(1024).toStdString()
-                      << " getValue=" << p0->getValue() << "\n";
         }
     }
 
