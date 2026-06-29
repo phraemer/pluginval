@@ -415,11 +415,30 @@ struct PluginStateTestRestoration   : public PluginTest
             // Restore original state
             callSetStateInformationOnMessageThreadIfVST3(instance, originalState);
 
+            const auto restoredBeforeProcess = parameter->getValue();
+
+            // Drive processBlock to see if the plugin emits the restored value
+            // via outputParameterChanges, updating the host cache.
+            {
+                const auto numCh = juce::jmax (instance.getTotalNumInputChannels(),
+                                              instance.getTotalNumOutputChannels());
+                const int bs = instance.getBlockSize() > 0 ? instance.getBlockSize() : 512;
+                juce::AudioBuffer<float> pb (numCh, bs);
+                juce::MidiBuffer mb;
+                for (int i = 0; i < 4; ++i)
+                {
+                    fillNoise (pb);
+                    instance.processBlock (pb, mb);
+                    mb.clear();
+                }
+            }
+
             const auto restoredValue = parameter->getValue();
             ut.logMessage("[DIAG] " + parameter->getName(1024)
                           + " orig=" + juce::String(originalValue, 6)
                           + " rand=" + juce::String(randomValue, 6)
-                          + " restored=" + juce::String(restoredValue, 6));
+                          + " beforeProc=" + juce::String(restoredBeforeProcess, 6)
+                          + " afterProc=" + juce::String(restoredValue, 6));
 
             // Check parameter values return to original
             ut.expectWithinAbsoluteError(restoredValue, originalValue, tolaratedDiff,
