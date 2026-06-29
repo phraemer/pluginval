@@ -393,13 +393,20 @@ struct PluginStateTestRestoration   : public PluginTest
         for (auto parameter : getNonBypassAutomatableParameters(instance))
         {
             const auto originalValue = parameter->getValue();
-            parameter->setValue(r.nextFloat());
+            const auto randomValue = r.nextFloat();
+            parameter->setValue(randomValue);
 
             // Restore original state
             callSetStateInformationOnMessageThreadIfVST3(instance, originalState);
 
+            const auto restoredValue = parameter->getValue();
+            ut.logMessage("[DIAG] " + parameter->getName(1024)
+                          + " orig=" + juce::String(originalValue, 6)
+                          + " rand=" + juce::String(randomValue, 6)
+                          + " restored=" + juce::String(restoredValue, 6));
+
             // Check parameter values return to original
-            ut.expectWithinAbsoluteError(parameter->getValue(), originalValue, tolaratedDiff,
+            ut.expectWithinAbsoluteError(restoredValue, originalValue, tolaratedDiff,
                 parameter->getName(1024) + juce::String(" not restored on setStateInformation"));
         }
 
