@@ -346,11 +346,27 @@ struct PluginStateTest  : public PluginTest
         auto originalState = callGetStateInformationOnMessageThreadIfVST3 (instance);
 
         // Set random parameter values
-        for (auto parameter : getNonBypassAutomatableParameters (instance))
+        auto params = getNonBypassAutomatableParameters (instance);
+        for (auto parameter : params)
             parameter->setValue (r.nextFloat());
+
+        // Diagnostic: log first param getValue before/after restore
+        if (! params.isEmpty())
+        {
+            auto* p0 = params.getFirst();
+            ut.logMessage ("[PS-DIAG] " + p0->getName(1024)
+                           + " getValue before restore=" + juce::String (p0->getValue(), 6));
+        }
 
         // Restore original state
         callSetStateInformationOnMessageThreadIfVST3 (instance, originalState);
+
+        if (! params.isEmpty())
+        {
+            auto* p0 = params.getFirst();
+            ut.logMessage ("[PS-DIAG] " + p0->getName(1024)
+                           + " getValue after restore=" + juce::String (p0->getValue(), 6));
+        }
     }
 
     std::vector<TestDescription> getDescription (int) const override
