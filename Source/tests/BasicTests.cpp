@@ -23,6 +23,7 @@
 #include <future>
 #include <thread>
 #include <chrono>
+#include <iostream>  // for std::cerr diagnostic
 
 //==============================================================================
 struct PluginInfoTest   : public PluginTest
@@ -385,6 +386,21 @@ struct PluginStateTestRestoration   : public PluginTest
         // by getValue() (host cache) and the value stored in the state (plugin
         // internal) can disagree, producing spurious restoration failures.
         ScopedPluginProcessorFlush flusher { instance };
+
+        // Diagnostic: check whether getValue() and getStateInformation() agree
+        // after the flush, for the first few parameters.
+        {
+            auto flushState = callGetStateInformationOnMessageThreadIfVST3 (instance);
+            // Decode the state to find parameter values is hard; instead just
+            // log getValue() for the first param and compare after a second flush.
+            auto params = getNonBypassAutomatableParameters (instance);
+            if (! params.isEmpty())
+            {
+                auto* p0 = params.getFirst();
+                ut.logMessage ("[DIAG-FLUSH] after initial flush: " + p0->getName(1024)
+                               + " getValue=" + juce::String (p0->getValue(), 6));
+            }
+        }
 
         // Read state
         auto originalState = callGetStateInformationOnMessageThreadIfVST3 (instance);
