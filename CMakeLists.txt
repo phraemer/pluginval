@@ -68,7 +68,13 @@ endif()
 
 # Only fetch JUCE when top-level (when used as dependency, JUCE is already available)
 if (pluginval_IS_TOP_LEVEL)
-    CPMAddPackage("gh:juce-framework/juce#8.0.13")
+    # Use a forked JUCE (GS-DSP/JUCE, branch james/testing) so we can add
+    # diagnostic output to JUCE and test it.
+    CPMAddPackage(
+        NAME JUCE
+        GITHUB_REPOSITORY GS-DSP/JUCE
+        GIT_TAG james/testing
+    )
 endif()
 
 
